@@ -2,13 +2,17 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const questionsRouter = require("./routes/questions");
+const authRouter = require("./routes/auth");
 const prisma = require("./lib/prisma");
 
-app.use(express.json());    // Middleware to parse JSON bodies
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-
-// everything under /api/questions
+// Routes
 app.use("/api/questions", questionsRouter);
+app.use("/api/auth", authRouter);
+
+// If no earlier route matched, send this response
 app.use((req, res) => {
     res.json({ msg: "Not found" });
 });
