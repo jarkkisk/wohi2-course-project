@@ -5,6 +5,10 @@ const questionsRouter = require("./routes/questions");
 const authRouter = require("./routes/auth");
 const prisma = require("./lib/prisma");
 
+const path = require('path');
+// static files are served first
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 
