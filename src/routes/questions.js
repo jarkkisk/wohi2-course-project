@@ -5,6 +5,8 @@ const multer = require("multer");
 const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
 const path = require('path');
+const { NotFoundError, ValidationError } = require("../lib/errors");
+const { z } = require("zod");
 
 // Apply authentication to ALL routes in this router
 router.use(authenticate);
@@ -26,15 +28,15 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-function formatPost(post) {
+function formatQ(q) {
     return {
-        ...post,
-        keywords: post.keywords.map((k) => k.name),
-        userName: post.user?.name || null,
+        ...q,
+        keywords: q.keywords.map((k) => k.name),
+        userName: q.user?.name || null,
         user: undefined,    // expose username only
         _count: undefined,
-        solved: post.attempts?.length > 0,
-        attemptCount: post._count?.attempts ?? 0
+        solved: q.attempts?.length > 0,
+        attemptCount: q._count?.attempts ?? 0
     };
 }
 
@@ -47,6 +49,12 @@ function parseKeywords(keywords) {
     return [];
 }
 
+const PostInput = z.object({
+    title: z.string().min(1),
+    date: z.string().date(),
+    content: z.string().min(1),
+    keywords: z.union([z.string(), z.array(z.string())]).optional(),
+});
 
 // GET      /api/questions, /api/questions?keyword=http&page=1&limit=5
 router.get("/", async (req, res) => {
@@ -77,7 +85,7 @@ router.get("/", async (req, res) => {
     ]);
 
     res.json({
-        data: filteredQuestions.map(formatPost),
+        data: filteredQuestions.map(formatQ),
         page,
         limit,
         total,
@@ -105,24 +113,31 @@ router.get("/:qId", async (req, res) => {
     });
 
     if (!qn) {
+        throw new NotFoundError("Question not found");
+        /*
         return res.status(404).json({
             message: "Question not found"
         });
+        */
     }
 
-    res.json(formatPost(qn));
+    res.json(formatQ(qn));
 });
 
 
 // POST     /api/questions
 router.post("/", upload.single("image"), async (req, res) => {
-    const { question, answer, keywords } = req.body;
+    //const { question, answer, keywords } = req.body;
 
+    const { question, answer, keywords } = PostInput.parse(req.body); // throws ZodError on failure
+    /*
     if (!question || !answer) {
+        throw new ValidationError("Question and answer are required");
         return res.status(400).json({
             message: "Question and answer are required"
         });
     }
+        */
 
     const keywordsArray = parseKeywords(keywords);
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -155,7 +170,7 @@ router.post("/", upload.single("image"), async (req, res) => {
     });
 
     res.status(201).json(
-        formatPost(newQuiz)
+        formatQ(newQuiz)
     );
 });
 
@@ -163,13 +178,16 @@ router.post("/", upload.single("image"), async (req, res) => {
 // PUT      /api/questions/:qId
 router.put("/:qId", isOwner, upload.single("image"), async (req, res) => {
     const qId = Number(req.params.qId);
-    const { question, answer, keywords } = req.body;
-    const qn = await prisma.quiz.findUnique({ where: { id: qId } });
+    //const { question, answer, keywords } = req.body;
+    const { question, answer, keywords } = PostInput.parse(req.body);
 
+    const qn = await prisma.quiz.findUnique({ where: { id: qId } });
     if (!qn) {
+        throw new NotFoundError("Question not found");
         return res.status(404).json({ message: "Question not found" });
     }
     if (!question || !answer) {
+        throw new ValidationError("Question and answer are required");
         return res.json({
             message: "Question and answer are required"
         });
@@ -196,7 +214,7 @@ router.put("/:qId", isOwner, upload.single("image"), async (req, res) => {
 
     res.json({
         message: "Question updated successfully",
-        q: formatPost(updatedQuiz)
+        q: formatQ(updatedQuiz)
     });
 });
 
@@ -210,6 +228,7 @@ router.delete("/:qId", isOwner, async (req, res) => {
         include: { keywords: true, user: true }
     });
     if (!q) {
+        throw new NotFoundError("Question not found");
         return res.status(404).json({ message: "Question not found" });
     }
 
@@ -222,7 +241,7 @@ router.delete("/:qId", isOwner, async (req, res) => {
 
     res.json({
         message: "Question deleted successfully",
-        q: formatPost(q)
+        q: formatQ(q)
     });
 });
 
@@ -236,6 +255,7 @@ router.post("/:qId/play", async (req, res) => {
     console.log(req.user);
 
     if (!answer) {
+        throw new ValidationError("Answer is required");
         return res.status(400).json({ message: "answer is required" });
     }
 
@@ -244,6 +264,7 @@ router.post("/:qId/play", async (req, res) => {
     });
 
     if (!question) {
+        throw new NotFoundError("Question not found");
         return res.status(404).json({ message: "Question not found" });
     }
 

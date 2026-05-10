@@ -9,10 +9,12 @@ const isOwner = async (req, res, next) => {
 
 
     if (!quiz) {
+        throw new NotFoundError("Post not found");
         return res.status(404).json({ message: "User not found" });
     }
 
     if (quiz.userId !== req.user.userId) {
+        throw new ForbiddenError("You can only modify your own posts");
         return res.status(403).json({ error: "You can only modify your own quizs" });
     }
 

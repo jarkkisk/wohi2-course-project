@@ -6,6 +6,7 @@ function authenticate(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith("Bearer ")) {
+        throw new UnauthorizedError("No token provided");
         return res.status(401).json({ error: "No token provided" });
     }
 
@@ -16,6 +17,9 @@ function authenticate(req, res, next) {
         req.user = decoded;
         next();
     } catch (err) {
+        req.log.warn({}, "Error authenticating");
+        
+        throw new ForbiddenError("Invalid or expired token");
         res.status(403).json({ error: "Invalid or expired token" });
     }
 
