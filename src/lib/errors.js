@@ -5,27 +5,23 @@ class AppError extends Error {
     }
 }
 
-class ValidationError
-    extends AppError {
+class ValidationError extends AppError {
     constructor(m = "Invalid input") { super(m, 400); }
 }
-class UnauthorizedError
-    extends AppError {
-        constructor(m = "Unauthorized") { super(m, 401); }
+
+class UnauthorizedError extends AppError {
+    constructor(m = "Unauthorized") { super(m, 401); }
 }
 
-class ForbiddenError
-    extends AppError {
+class ForbiddenError extends AppError {
     constructor(m = "Forbidden") { super(m, 403); }
 }
 
-class NotFoundError
-    extends AppError {
+class NotFoundError extends AppError {
     constructor(m = "Not found") { super(m, 404); }
 }
 
-class ConflictError
-    extends AppError {
+class ConflictError extends AppError {
     constructor(m = "Conflict") { super(m, 409); }
 }
 

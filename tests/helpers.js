@@ -17,11 +17,12 @@ async function registerAndLogin(email = "a@test.io", name = "A") {
     return res.body.token;
 }
 
-async function createPost(token, overrides = {}) {
+async function createQuestion(token, overrides = {}) {
     const res = await request(app).post("/api/questions")
         .set("Authorization", `Bearer ${token}`)
-        .send({ title: "T", date: "2026-01-01", content: "C", ...overrides });
+        .send({ question: "Who is this?", answer: "Bob", ...overrides });
+        //.send({ title: "T", date: "2026-01-01", content: "C", ...overrides });
     return res.body;
 }
 
-module.exports = { resetDb, registerAndLogin, createPost };
+module.exports = { resetDb, registerAndLogin, createQuestion, request, app, prisma};

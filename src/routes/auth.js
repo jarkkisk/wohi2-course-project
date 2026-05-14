@@ -13,7 +13,7 @@ router.post("/register", async (req, res) => {
 
     if (!email || !password || !name) {
         throw new ValidationError("Email, password and name are required");
-        return res.status(400).json({ error: "email, password and name are required" });
+        //return res.status(400).json({ error: "email, password and name are required" });
     }
 
     // Check if user already exists
@@ -21,7 +21,7 @@ router.post("/register", async (req, res) => {
 
     if (existingUser) {
         throw new ConflictError("Email already registered");
-        return res.status(409).json({ error: "Email already registered" });
+        //return res.status(409).json({ error: "Email already registered" });
     }
 
     // Hash the password
@@ -47,7 +47,7 @@ router.post("/login", async (req, res) => {
 
     if (!email || !password) {
         throw new ValidationError("Email and password are required");
-        return res.status(400).json({ error: "email and password are required" });
+        //return res.status(400).json({ error: "email and password are required" });
     }
 
     // Find the user
@@ -56,14 +56,14 @@ router.post("/login", async (req, res) => {
     });
     if (!user) {
         throw new UnauthorizedError("Invalid credentials");
-        return res.status(401).json({ error: "Invalid credentials" });
+        //return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Verify the password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
         throw new UnauthorizedError("Invalid credentials");
-        return res.status(401).json({ error: "Invalid credentials" });
+        //return res.status(401).json({ error: "Invalid credentials" });
     }
     // Generate a token
     const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: "1h" });

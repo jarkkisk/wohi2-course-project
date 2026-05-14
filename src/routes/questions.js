@@ -49,12 +49,21 @@ function parseKeywords(keywords) {
     return [];
 }
 
+/*
 const PostInput = z.object({
     title: z.string().min(1),
     date: z.string().date(),
     content: z.string().min(1),
     keywords: z.union([z.string(), z.array(z.string())]).optional(),
 });
+*/
+
+const PostInput = z.object({
+    question: z.string().min(1),
+    answer: z.string().min(1),
+    keywords: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
 
 // GET      /api/questions, /api/questions?keyword=http&page=1&limit=5
 router.get("/", async (req, res) => {
@@ -137,7 +146,7 @@ router.post("/", upload.single("image"), async (req, res) => {
             message: "Question and answer are required"
         });
     }
-        */
+    */
 
     const keywordsArray = parseKeywords(keywords);
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -184,13 +193,15 @@ router.put("/:qId", isOwner, upload.single("image"), async (req, res) => {
     const qn = await prisma.quiz.findUnique({ where: { id: qId } });
     if (!qn) {
         throw new NotFoundError("Question not found");
-        return res.status(404).json({ message: "Question not found" });
+        //return res.status(404).json({ message: "Question not found" });
     }
     if (!question || !answer) {
         throw new ValidationError("Question and answer are required");
+        /*
         return res.json({
             message: "Question and answer are required"
         });
+        */
     }
 
     const keywordsArray = parseKeywords(keywords);
@@ -229,7 +240,7 @@ router.delete("/:qId", isOwner, async (req, res) => {
     });
     if (!q) {
         throw new NotFoundError("Question not found");
-        return res.status(404).json({ message: "Question not found" });
+        //return res.status(404).json({ message: "Question not found" });
     }
 
     // Delete attempts first
@@ -256,7 +267,7 @@ router.post("/:qId/play", async (req, res) => {
 
     if (!answer) {
         throw new ValidationError("Answer is required");
-        return res.status(400).json({ message: "answer is required" });
+        //return res.status(400).json({ message: "answer is required" });
     }
 
     const question = await prisma.quiz.findUnique({
@@ -265,7 +276,7 @@ router.post("/:qId/play", async (req, res) => {
 
     if (!question) {
         throw new NotFoundError("Question not found");
-        return res.status(404).json({ message: "Question not found" });
+        //return res.status(404).json({ message: "Question not found" });
     }
 
     const correct =

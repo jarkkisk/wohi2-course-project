@@ -4,9 +4,10 @@ const path = require("path");
 const express = require("express");
 const pinoHttp = require("pino-http");
 const logger = require("./lib/logger");
-const postsRouter = require("./routes/questions");
+const questionsRouter = require("./routes/questions");
 const authRouter = require("./routes/auth");
 const errorHandler = require("./middleware/errorHandler");
+const { NotFoundError } = require("./lib/errors");
 const app = express();
 
 // static files are served first
@@ -19,9 +20,12 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Routes
 app.use("/api/auth", authRouter);
-app.use("/api/posts", postsRouter);
+app.use("/api/questions", questionsRouter);
 
-app.use((req, res) => res.status(404).json({ message: "Not found" }));
+app.use((req, res) => {
+    throw new NotFoundError();
+});
+//app.use((req, res) => res.status(404).json({ message: "Not found" }));
 app.use(errorHandler);
 
 module.exports = app;
