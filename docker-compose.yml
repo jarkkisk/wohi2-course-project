@@ -1,19 +1,15 @@
 services:
   db:
-    image: mysql:8
+    image: postgres:16
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: quiz
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: quiz
     ports:
-    - "3300:3306"
+      - "5432:5432"
     volumes:
-    - dbdata:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      - dbdata:/var/lib/postgresql/data
   app:
     build: .
     restart: unless-stopped
@@ -21,9 +17,6 @@ services:
     - "3000:3000"
     env_file:
     - .env
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - uploads:/app/public/uploads
 volumes:
