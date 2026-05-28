@@ -48,6 +48,7 @@ function showAuth() {
 function renderAuthForm() {
   const fields = isRegisterMode ? CONFIG.FIELDS.REGISTER : CONFIG.FIELDS.LOGIN;
   const title = isRegisterMode ? "Sign Up" : "Log In";
+  const showCaptcha = isRegisterMode;
   const switchText = isRegisterMode
     ? 'Already have an account? <a href="#" id="switch-mode">Log in</a>'
     : 'Don\'t have an account? <a href="#" id="switch-mode">Sign up</a>';
@@ -56,16 +57,20 @@ function renderAuthForm() {
     <h2>${title}</h2>
     <form id="auth-form">
       ${fields
-        .map((f) => {
-          const type = f === "password" ? "password" : f === "email" ? "email" : "text";
-          const label = f.charAt(0).toUpperCase() + f.slice(1);
-          return `
-          <div class="form-group">
-            <label for="${f}">${label}</label>
-            <input type="${type}" id="${f}" name="${f}" required />
-          </div>`;
-        })
-        .join("")}
+      .map((f) => {
+        const type = f === "password" ? "password" : f === "email" ? "email" : "text";
+        const label = f.charAt(0).toUpperCase() + f.slice(1);
+        return `
+            <div class="form-group">
+              <label for="${f}">${label}</label>
+              <input type="${type}" id="${f}" name="${f}" required />
+            </div>`;
+      })
+      .join("")
+    }
+      
+      ${showCaptcha ? `<div class="h-captcha" data-sitekey=${CONFIG.SITE_KEY}></div>` : ""}
+      
       <button type="submit">${title}</button>
     </form>
     <p class="switch-text">${switchText}</p>
@@ -79,6 +84,23 @@ function renderAuthForm() {
     isRegisterMode = !isRegisterMode;
     renderAuthForm();
   });
+
+  if (showCaptcha && window.hcaptcha) {
+    setTimeout(() => {
+      const el = document.querySelector(".h-captcha");
+
+      if (!el) return;
+
+      // prevent double render
+      if (el.dataset.rendered === "true") return;
+
+      window.hcaptcha.render(el, {
+        sitekey: CONFIG.SITE_KEY,
+      });
+
+      el.dataset.rendered = "true";
+    }, 0);
+  }
 }
 
 async function handleAuth(e) {
@@ -94,11 +116,29 @@ async function handleAuth(e) {
     body[f] = document.getElementById(f).value;
   });
 
+  // include captcha only for register
+  if (isRegisterMode && window.hcaptcha) {
+    const token = window.hcaptcha.getResponse();
+
+    if (!token) {
+      errorEl.textContent = "Please complete the CAPTCHA";
+      return;
+    }
+
+    body["h-captcha-response"] = token;
+  }
+
+  // reset captcha after success
+  if (window.hcaptcha) {
+    window.hcaptcha.reset();
+  }
+
   try {
     const data = await apiFetch(route, {
       method: "POST",
       body: JSON.stringify(body),
     });
+
     setToken(data.token);
     showApp();
   } catch (err) {
@@ -158,23 +198,21 @@ async function loadQuestions(keyword = "", page = 1) {
             <a href="#" class="question-link" data-id="${q.id}">${q.question}</a>
             ${q[CONFIG.API_FIELDS.SOLVED] ? `<span class="badge-solved">Solved</span>` : ""}
           </h3>
-          ${
-            q.keywords && q.keywords.length
+          ${q.keywords && q.keywords.length
               ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
               : ""
-          }
+            }
           <div class="question-actions">
             <span>
               <button class="btn btn-play" data-id="${q.id}">Play</button>
               <a href="#" class="read-more" data-id="${q.id}">See answer</a>
             </span>
-            ${
-              q.userId === currentUserId
-                ? `<span class="owner-actions">
+            ${q.userId === currentUserId
+              ? `<span class="owner-actions">
                     <button class="btn btn-edit" data-id="${q.id}">Edit</button>
                     <button class="btn btn-delete" data-id="${q.id}">Delete</button>
                   </span>`
-                : ""
+              : ""
             }
           </div>
         </article>`
@@ -256,19 +294,17 @@ async function loadQuestionDetail(qId) {
         <p class="question-meta">by ${q.userName || "Unknown"}</p>
         ${q.imageUrl ? `<img class="question-image" src="${q.imageUrl}" alt="">` : ""}
         <p class="question-answer">${q.answer}</p>
-        ${
-          q.keywords && q.keywords.length
-            ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
-            : ""
-        }
-        ${
-          isOwner
-            ? `<div class="question-actions detail-actions">
+        ${q.keywords && q.keywords.length
+        ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
+        : ""
+      }
+        ${isOwner
+        ? `<div class="question-actions detail-actions">
                 <button class="btn btn-edit" id="detail-edit-btn">Edit</button>
                 <button class="btn btn-delete" id="detail-delete-btn">Delete</button>
               </div>`
-            : ""
-        }
+        : ""
+      }
       </article>`;
 
     document.getElementById("back-btn").addEventListener("click", (e) => {
@@ -370,11 +406,10 @@ async function playQuestion(qId) {
       <div class="question-form-wrapper" style="text-align:center">
         <div class="play-question-text">${q.question}</div>
         ${q.imageUrl ? `<img class="question-image" src="${q.imageUrl}" alt="" style="margin:0 auto 1rem">` : ""}
-        ${
-          q.keywords && q.keywords.length
-            ? `<div class="question-keywords" style="justify-content:center;margin-bottom:1.5rem">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
-            : ""
-        }
+        ${q.keywords && q.keywords.length
+        ? `<div class="question-keywords" style="justify-content:center;margin-bottom:1.5rem">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
+        : ""
+      }
         <form id="play-form" style="text-align:left">
           <div class="form-group">
             <label for="play-answer">Your answer</label>

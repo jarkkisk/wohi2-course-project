@@ -7,7 +7,6 @@ function authenticate(req, res, next) {
 
     if (!authHeader?.startsWith("Bearer ")) {
         throw new UnauthorizedError("No token provided");
-        //return res.status(401).json({ error: "No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
@@ -20,7 +19,6 @@ function authenticate(req, res, next) {
         req.log.warn({}, "Error authenticating");
         
         throw new ForbiddenError("Invalid or expired token");
-        //res.status(403).json({ error: "Invalid or expired token" });
     }
 
 }
