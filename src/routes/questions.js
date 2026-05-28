@@ -49,14 +49,6 @@ function parseKeywords(keywords) {
     return [];
 }
 
-/*
-const PostInput = z.object({
-    title: z.string().min(1),
-    date: z.string().date(),
-    content: z.string().min(1),
-    keywords: z.union([z.string(), z.array(z.string())]).optional(),
-});
-*/
 
 const PostInput = z.object({
     question: z.string().min(1),
@@ -102,6 +94,45 @@ router.get("/", async (req, res) => {
     });
 });
 
+// GET      /api/questions/random
+// This must be before /:qId because Express matches routes in order
+router.get("/random", async (req, res) => {
+    const amount = 10;
+
+    const quizs = await prisma.quiz.findMany({
+        select: {
+            id: true
+        },
+    });
+
+    if (quizs.length < amount) {
+        throw new NotFoundError(`At least ${amount} questions in database required`);
+    }
+
+    const shuffled = quizs.sort(
+        () => Math.random() - 0.5
+    ); // negative value -> swap order
+
+    const randomIds = shuffled
+        .slice(0, amount) // take the first 10
+        .map(q => q.id);
+
+    const qn = await prisma.quiz.findMany({
+        where: {
+            id: {
+                in: randomIds,
+            },
+        },
+        include: {
+            keywords: true,
+            user: true
+        }
+    });
+
+    // qn is an array
+    res.json(qn.map(formatQ));
+});
+
 // GET      /api/questions/:qId
 router.get("/:qId", async (req, res) => {
     const qId = Number(req.params.qId);
@@ -123,11 +154,6 @@ router.get("/:qId", async (req, res) => {
 
     if (!qn) {
         throw new NotFoundError("Question not found");
-        /*
-        return res.status(404).json({
-            message: "Question not found"
-        });
-        */
     }
 
     res.json(formatQ(qn));
@@ -136,17 +162,7 @@ router.get("/:qId", async (req, res) => {
 
 // POST     /api/questions
 router.post("/", upload.single("image"), async (req, res) => {
-    //const { question, answer, keywords } = req.body;
-
     const { question, answer, keywords } = PostInput.parse(req.body); // throws ZodError on failure
-    /*
-    if (!question || !answer) {
-        throw new ValidationError("Question and answer are required");
-        return res.status(400).json({
-            message: "Question and answer are required"
-        });
-    }
-    */
 
     const keywordsArray = parseKeywords(keywords);
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -187,21 +203,14 @@ router.post("/", upload.single("image"), async (req, res) => {
 // PUT      /api/questions/:qId
 router.put("/:qId", isOwner, upload.single("image"), async (req, res) => {
     const qId = Number(req.params.qId);
-    //const { question, answer, keywords } = req.body;
     const { question, answer, keywords } = PostInput.parse(req.body);
 
     const qn = await prisma.quiz.findUnique({ where: { id: qId } });
     if (!qn) {
         throw new NotFoundError("Question not found");
-        //return res.status(404).json({ message: "Question not found" });
     }
     if (!question || !answer) {
         throw new ValidationError("Question and answer are required");
-        /*
-        return res.json({
-            message: "Question and answer are required"
-        });
-        */
     }
 
     const keywordsArray = parseKeywords(keywords);
@@ -239,8 +248,6 @@ router.delete("/:qId", isOwner, async (req, res) => {
         include: { keywords: true, user: true }
     });
     if (!q) {
-        throw new NotFoundError("Question not found");
-        //return res.status(404).json({ message: "Question not found" });
     }
 
     // Delete attempts first
@@ -267,7 +274,6 @@ router.post("/:qId/play", async (req, res) => {
 
     if (!answer) {
         throw new ValidationError("Answer is required");
-        //return res.status(400).json({ message: "answer is required" });
     }
 
     const question = await prisma.quiz.findUnique({
@@ -276,7 +282,6 @@ router.post("/:qId/play", async (req, res) => {
 
     if (!question) {
         throw new NotFoundError("Question not found");
-        //return res.status(404).json({ message: "Question not found" });
     }
 
     const correct =
