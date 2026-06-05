@@ -7,6 +7,8 @@ const isOwner = require("../middleware/isOwner");
 const path = require('path');
 const { NotFoundError, ValidationError } = require("../lib/errors");
 const { z } = require("zod");
+const csv = require("csv-parser");
+const fs = require("fs");
 
 // Apply authentication to ALL routes in this router
 router.use(authenticate);
@@ -26,6 +28,23 @@ const upload = multer({
         else cb(new Error("Only image files are allowed"));
     },
     limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+const uploadCSV = multer({
+    storage: multer.diskStorage({
+        destination: path.join(__dirname, "..", "..", "uploads"),
+        filename: (req, file, cb) => {
+            cb(null, `${Date.now()}-${file.originalname}`);
+        }
+    }),
+    fileFilter: (req, file, cb) => {
+        const isCSV =
+            file.mimetype === "text/csv" ||
+            file.originalname.endsWith(".csv");
+
+        if (isCSV) cb(null, true);
+        else cb(new Error("Only CSV files allowed"));
+    }
 });
 
 function formatQ(q) {
@@ -48,7 +67,6 @@ function parseKeywords(keywords) {
     }
     return [];
 }
-
 
 const PostInput = z.object({
     question: z.string().min(1),
@@ -197,6 +215,59 @@ router.post("/", upload.single("image"), async (req, res) => {
     res.status(201).json(
         formatQ(newQuiz)
     );
+});
+
+// POST     /api/questions/batch
+router.post("/batch", uploadCSV.single("file"), async (req, res) => {
+    if (!req.file) {
+        throw new ValidationError("CSV file is required");
+    }
+
+    // assumes csv file data is valid
+
+    const rows = [];
+    const batched = [];
+
+    fs.createReadStream(req.file.path)
+        .pipe(csv()) // passes to a parser
+        .on("data", (row) => rows.push(row)) // for each parsed row
+        .on("end", async () => { // file reading completed
+            for (const row of rows) {
+                const keywordsArray = parseKeywords(row.keywords);
+                
+                const newQuiz = await prisma.quiz.create({
+                    data: {
+                        question: row.question,
+                        answer: row.answer,
+                        userId: req.user.userId,
+                        keywords: {
+                            connectOrCreate: keywordsArray.map((kw) => ({
+                                where: { name: kw },
+                                create: { name: kw },
+                            })),
+                        },
+                    },
+                    include: {
+                        keywords: true,
+                        user: true,
+                        attempts: {
+                            where: {
+                                userId: req.user.userId,
+                                correct: true,
+                            },
+                            take: 1,
+                        },
+                        _count: { select: { attempts: true } },
+                    }
+                });
+                batched.push(newQuiz)
+            }
+        
+        //console.log(batched)
+        res.status(201).json(
+            batched.map(formatQ)
+        );
+    });
 });
 
 

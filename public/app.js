@@ -37,6 +37,8 @@ async function apiFetch(route, options = {}) {
   return data;
 }
 
+
+
 // --- Auth ---
 function showAuth() {
   document.getElementById("auth-section").style.display = "block";
@@ -145,6 +147,8 @@ async function handleAuth(e) {
     errorEl.textContent = err.message;
   }
 }
+
+
 
 // --- App ---
 async function showApp() {
